@@ -329,7 +329,103 @@ SR_ErrorCode SR_SortedFile(
   int fieldNo,
   int bufferSize
 ) {
-  // Your code goes here
+  BF_Block *block = NULL;
+  char *data = NULL;
+  int blockNum = 0; // Total blocks in sort file
+  
+  errBF = BF_CreateFile(output_fileName);
+    if(errBF != BF_OK){
+        BF_Block_Destroy(&block);
+        return SR_ERROR;
+    }
+    
+  // Get meta-data block //
+  errBF = BF_GetBlock(*fileDesc,0,block);
+  if (errBF != BF_OK){
+      BF_CloseFile(*fileDesc);
+      BF_Block_Destroy(&block);
+      return SR_ERROR;
+  }
+
+    data_in = BF_Block_GetData(block);  
+    
+    errBF = BF_UnpinBlock(block);
+    if(errBF != BF_OK){
+        BF_CloseFile(fileDesc);
+        BF_Block_Destroy(&block);
+        return SR_ERROR;
+    }
+    
+    // Create meta-data block for output_fileName //
+    errBF = BF_AllocateBlock(fileDesc,block);
+    if(errBF != BF_OK){
+        BF_CloseFile(fileDesc);
+        BF_Block_Destroy(&block);
+        return SR_ERROR;
+    }
+
+    data_out = BF_Block_GetData(block);
+
+    // Add code in block //
+    memcpy(data_out, data_in, sizeof(data_in));
+
+    BF_Block_SetDirty(block);
+
+    errBF = BF_UnpinBlock(block);
+    if(errBF != BF_OK){
+        BF_CloseFile(fileDesc);
+        BF_Block_Destroy(&block);
+        return SR_ERROR;
+    }
+
+    // Get number of total blocks in sort file //
+    errBF = BF_GetBlockCounter(fileDesc,&blockNum);
+    if(errBF != BF_OK){
+        BF_Block_Destroy(&block);
+        return SR_ERROR;
+    }
+    
+    for(i = 1; i < blockNum; i++){
+        // Get next block //
+        errBF = BF_GetBlock(*fileDesc,i,block);
+        if (errBF != BF_OK){
+            BF_CloseFile(*fileDesc);
+            BF_Block_Destroy(&block);
+            return SR_ERROR;
+        }
+
+        data_in = BF_Block_GetData(block);  
+
+        errBF = BF_UnpinBlock(block);
+        if(errBF != BF_OK){
+            BF_CloseFile(fileDesc);
+            BF_Block_Destroy(&block);
+            return SR_ERROR;
+        }
+        
+        // Create next block for output_fileName //
+        errBF = BF_AllocateBlock(fileDesc,block);
+        if(errBF != BF_OK){
+            BF_CloseFile(fileDesc);
+            BF_Block_Destroy(&block);
+            return SR_ERROR;
+        }
+
+        data_out = BF_Block_GetData(block);
+
+        // Add code in block //
+        memcpy(data_out, data_in, sizeof(data_in));
+
+        BF_Block_SetDirty(block);
+
+        errBF = BF_UnpinBlock(block);
+        if(errBF != BF_OK){
+            BF_CloseFile(fileDesc);
+            BF_Block_Destroy(&block);
+            return SR_ERROR;
+        }
+    
+    }//end for
 
   return SR_OK;
 }
